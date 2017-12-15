@@ -1,0 +1,89 @@
+version: '2'
+
+services:
+    server:
+        build:
+           context: ./images/nginx
+        # container_name: ${PROJECT_NAME}_server
+        ports:
+            - 80:80
+        volumes:
+            - ./logs/nginx:/var/log/nginx
+            - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+            - ./config/nginx/includes:/etc/nginx/includes
+            - ./config/nginx/custom-locations:/etc/nginx/custom-locations
+            - ./config/nginx/sites-enabled/default.conf:/etc/nginx/conf.d/default.conf
+            #- ./config/nginx/sites-enabled/loja2.magento.dev.conf:/etc/nginx/conf.d/loja2.magento.dev.conf
+        volumes_from:
+            - php
+        networks:
+            - front
+
+
+    php:
+        build:
+            context: ./images/php
+            dockerfile: Dockerfile-alpine
+        # container_name: ${PROJECT_NAME}_php
+        volumes:
+            - ./config/php/php.ini:/usr/local/etc/php/php.ini
+            - ./web:/var/www/html
+        networks:
+            - front
+            - back
+
+
+    database:
+        image: percona:latest
+        # container_name: ${PROJECT_NAME}_database
+        volumes:
+            - database_data:/var/lib/mysql
+            - ./database/dump:/dump
+        networks:
+            - back
+        environment:
+            MYSQL_DATABASE: magento
+            MYSQL_ROOT_PASSWORD: magento
+            MYSQL_USER: magento
+            MYSQL_PASSWORD: magento
+
+
+    cache:
+        image: redis:alpine
+        # container_name: ${PROJECT_NAME}_cache
+        networks:
+            - back
+
+
+    session:
+        image: redis:alpine
+        # container_name: ${PROJECT_NAME}_session
+        networks:
+            - back
+
+
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin:latest
+        # container_name: ${PROJECT_NAME}_phpmyadmin
+        ports:
+            - 8080:80
+        environment:
+            MYSQL_ROOT_PASSWORD: magento
+            PMA_HOST: database
+            PMA_PORT: 3306
+            PMA_USER: magento
+            PMA_PASSWORD: magento
+        networks:
+            - back
+
+
+volumes:
+    database_data:
+        driver: local
+
+
+networks:
+    front:
+        driver: bridge
+    back:
+        driver: bridge
